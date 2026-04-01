@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiview Imitation Learning</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.7.0/vanilla-tilt.min.js"></script>
+
+    <!-- MathJax for LaTeX Support -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+
+    <style>
+        /* --- CSS VARIABLES & THEMES --- */
+        :root {
+            /* Light Theme Only */
+            /* --bg-gradient: linear-gradient(135deg, #f0f7ff, #e8f4f8); */
+            --text-main: #1a1a1a;
+            --text-secondary: #4a4a4a;
+            --glass-bg: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --glass-shadow: 0 8px 32px 0 rgba(33, 150, 243, 0.1);
+            --accent: #2196F3;
+            --accent-hover: #1976D2;
+            --code-bg: rgba(245, 245, 245, 0.8);
+        }
+
+        /* --- RESET & BASE --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body {
+            overflow-x: hidden;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        /* --- 3D BACKGROUND --- */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* --- LAYOUT --- */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+            text-align: center;
+            /* Center align by default for title */
+        }
+
+        /* --- GLASS COMPONENTS --- */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: var(--glass-shadow);
+            padding: 2.5rem;
+            text-align: left;
+            /* Reset text align for content */
+        }
+
+        /* --- HEADER SECTION --- */
+        .paper-header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .paper-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 1.5rem;
+            background: -webkit-linear-gradient(0deg, var(--text-main), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .author-list {
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .author-list a {
+            color: var(--text-main);
+            text-decoration: none;
+            margin: 0 0.5rem;
+            position: relative;
+        }
+
+        .author-list a:hover {
+            color: var(--accent);
+        }
+
+        .venue {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .venue a {
+            color: var(--text-main);
+            text-decoration: none;
+            margin: 0 0.5rem;
+            position: relative;
+        }
+
+        .venue a:hover {
+            color: var(--accent);
+        }
+
+        .affiliations {
+            color: var(--text-secondary);
+            font-size: 1.4rem;
+            margin-bottom: 2rem;
+        }
+
+        .contact {
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .link-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-main {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 0.8rem 1.5rem;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 600;
+            backdrop-filter: blur(4px);
+            transition: all 0.3s ease;
+        }
+
+        .btn-main:hover {
+            background: var(--accent);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+            border-color: var(--accent);
+        }
+
+        /* --- TEASER --- */
+        .teaser-img {
+            width: 100%;
+            border-radius: 12px;
+            margin-top: 1rem;
+            border: 1px solid var(--glass-border);
+        }
+
+        .teaser-caption {
+            color: var(--text-secondary);
+            margin-top: 1rem;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        /* --- CONTENT SECTIONS --- */
+        h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: var(--text-main);
+            border-bottom: 2px solid var(--accent);
+            display: inline-block;
+            padding-bottom: 0.3rem;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            margin-bottom: 0.8rem;
+            color: var(--text-main);
+            margin-top: 2rem;
+            font-weight: 600;
+        }
+
+        p {
+            line-height: 1.7;
+            color: var(--text-main);
+            margin-bottom: 1rem;
+            font-size: 1.05rem;
+        }
+
+        /* --- BIBTEX --- */
+        .bibtex-box {
+            background: var(--code-bg);
+            padding: 1.5rem;
+            border-radius: 10px;
+            overflow-x: auto;
+            border: 1px solid var(--glass-border);
+            position: relative;
+        }
+
+        pre {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            white-space: pre-wrap;
+        }
+
+        /* --- TABLES --- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: var(--text-main);
+        }
+
+        th,
+        td {
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        th {
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .best-score {
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        /* --- COMPARISON SLIDER --- */
+        .comp-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 2rem auto;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            cursor: col-resize;
+            line-height: 0;
+            /* Remove bottom image gap */
+        }
+
+        .comp-img-back {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .comp-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 50%;
+            /* Start at 50% */
+            overflow: hidden;
+            border-right: 3px solid var(--accent);
+            z-index: 5;
+        }
+
+        .comp-img-front {
+            height: 100%;
+            /* Width will be set by JS to match container */
+            max-width: none;
+            display: block;
+        }
+
+        .comp-slider {
+            position: absolute;
+            z-index: 10;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background-color: var(--accent);
+            border: 3px solid white;
+            border-radius: 50%;
+            cursor: col-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            /* Let clicks pass to container */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .comp-slider::after {
+            content: '↔';
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .comp-label {
+            position: absolute;
+            top: 1rem;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+        }
+
+        .label-left {
+            left: 1rem;
+            z-index: 6;
+        }
+
+        .label-right {
+            right: 1rem;
+            z-index: 4;
+        }
+
+        /* --- RESULTS GRID & SELECTOR --- */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            /* Changed to 3 columns */
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .result-item {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            transition: transform 0.3s ease;
+        }
+
+        .result-item:hover {
+            transform: scale(1.02);
+            z-index: 10;
+        }
+
+        .result-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .result-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 0.85rem;
+            text-align: center;
+            backdrop-filter: blur(4px);
+            font-weight: 600;
+        }
+
+        .dataset-selector {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Replaced .dataset-thumb with .dataset-btn to match table buttons */
+        .dataset-btn {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            padding: 0.5rem 2rem;
+            /* Wider padding */
+            border-radius: 20px;
+            /* Pill shape */
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.9rem;
+            min-width: 120px;
+            /* Ensure they are wide */
+        }
+
+        .dataset-btn:hover,
+        .dataset-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* --- TABLE TABS --- */
+        .tab-container {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            padding: 0.5rem 1.5rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .tab-btn.active,
+        .tab-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+        }
+
+        /* --- METHODOLOGY LAYOUT --- */
+        .method-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5rem;
+            align-items: center;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .method-row img {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .method-row img:hover {
+            transform: scale(1.02);
+        }
+
+        .method-text h3 {
+            margin-top: 0;
+            /* Reset global h3 margin for this context */
+            color: var(--accent);
+        }
+
+        /* --- BIBTEX SCROLLBAR ("Slide Bar") --- */
+        .bibtex-box {
+            background: var(--code-bg);
+            padding: 1.5rem;
+            border-radius: 10px;
+            overflow-x: auto;
+            /* Enable horizontal scroll */
+            border: 1px solid var(--glass-border);
+            position: relative;
+        }
+
+        /* Custom Scrollbar Styling */
+        .bibtex-box::-webkit-scrollbar {
+            height: 10px;
+            /* Visible height */
+        }
+
+        .bibtex-box::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+            margin: 0 10px;
+        }
+
+        .bibtex-box::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            /* Matches the purple buttons */
+            border-radius: 5px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        .bibtex-box::-webkit-scrollbar-thumb:hover {
+            background-color: var(--accent-hover);
+        }
+
+        pre {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.0rem;
+            /* Made text smaller */
+            color: var(--text-main);
+            white-space: pre;
+            /* Forces text to stay on one line, creating the "slide bar" effect */
+        }
+
+        .metrics-table {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .paper-title {
+                font-size: 2rem;
+            }
+
+            .container {
+                padding: 2rem 1rem;
+            }
+
+            .glass-panel {
+                padding: 1.5rem;
+            }
+
+            .link-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn-main {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .results-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            /* Stack method rows on mobile */
+            .method-row {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+                text-align: center;
+            }
+
+            /* Reorder second row so image is on top for mobile consistency if desired, 
+               but default stacking (Text then Image) is often preferred for flow. 
+               Leaving default stacking order. */
+        }
+    </style>
+    <meta name="google-site-verification" content="ckOPAEVbXcPaPfTw-55IBv8ONk4piVPU6rT_egFFEDc" />
+</head>
+
+<body>
+
+    <!-- 3D Background -->
+    <div id="canvas-container"></div>
+
+    <div class="container">
+
+        <!-- HEADER -->
+        <header class="paper-header">
+            <h1 class="paper-title">Multi-Camera View Scaling for Data-Efficient Robot Imitation Learning
+            </h1>
+
+            <div class="author-list">
+                <a href="http://yichen928.github.io/">Yichen Xie<sup>1</sup></a>,
+                <a href="https://yixiaowang7.github.io/">Yixiao Wang<sup>1</sup></a>,
+                <a href="https://www.linkedin.com/in/cheng-en-wu-b2a81a27b/">Cheng-En Wu<sup>1</sup></a>,
+                <a href="https://zhao-sq.github.io/">Shuqi Zhao<sup>1</sup></a>,
+                <a href="https://me.berkeley.edu/people/masayoshi-tomizuka/">Masayoshi Tomizuka<sup>1</sup></a>,
+                <a href="http://www.stat.ucla.edu/~jxie/">Jianwen Xie<sup>2</sup></a>,
+                <a href="https://fang-haoshu.github.io/">Hao-Shu Fang<sup>3</sup></a>
+            </div>
+
+            <br>
+            <div class="affiliations">
+                <sup>1</sup> UC Berkeley, <sup>2</sup> Lambda, Inc, <sup>3</sup> MIT
+            </div>
+
+            <div class="contact">
+                Contact: yichen_xie@berkeley.edu
+            </div>            
+
+            <!-- <div class="venue">
+                </a>CVPR 2026</a>
+            </div> -->
+
+            <div class="link-buttons">
+                <a href="https://arxiv.org/abs/2602.20685" class="btn-main">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" />
+                        <path d="M7 7h10v2H7zm0 4h10v2H7zm0 4h7v2H7z" />
+                    </svg>
+                    Paper
+                </a>
+            </div>
+        </header>
+
+        <!-- TEASER SECTION -->
+        <!-- <section class="glass-panel" data-tilt data-tilt-max="2" data-tilt-glare data-tilt-max-glare="0.05">
+            <img src="https://placehold.co/900x400/1e293b/FFF?text=Teaser+Video" alt="Teaser" class="teaser-img">
+            <p class="teaser-caption">
+                <b>Figure 1:</b> Our method reconstructs high-fidelity 3D models from as few as 3 sparse input views, significantly outperforming previous SOTA methods in geometry preservation and texture details.
+            </p>
+        </section> -->
+
+        <!-- TL;DR -->
+        <section class="glass-panel" data-tilt data-tilt-max="2" data-tilt-glare data-tilt-max-glare="0.05">
+            <h2>TL;DR</h2>
+            <p style="font-size: 1.1rem; font-weight: 500; margin-bottom: 0;">
+                We leverage synchronized multi-camera views to turn each expert demonstration into diverse pseudo-demonstrations to improve data efficiency in robot imitation learning without additional human effort.
+            </p>
+        </section>
+
+        <!-- ABSTRACT -->
+        <section class="glass-panel">
+            <h2>Abstract</h2>
+            <p>
+                The generalization ability of imitation learning policies for robotic manipulation is fundamentally constrained by the diversity of expert demonstrations, while collecting demonstrations across varied environments is costly and difficult in practice. 
+                In this paper, we propose a practical framework that exploits inherent scene diversity without additional human effort by scaling camera views during demonstration collection. 
+                Instead of acquiring more trajectories, multiple synchronized camera perspectives are used to generate pseudo-demonstrations from each expert trajectory, which enriches the training distribution and improves viewpoint invariance in visual representations. 
+                We analyze how different action spaces interact with view scaling and show that camera-space representations further enhance diversity. 
+                In addition, we introduce a multiview action aggregation method that allows single-view policies to benefit from multiple cameras during deployment. 
+                Extensive experiments in simulation and real-world manipulation tasks demonstrate significant gains in data efficiency and generalization compared to single-view baselines. Our results suggest that scaling camera views provides a practical and scalable solution for imitation learning, which requires minimal additional hardware setup and integrates seamlessly with existing imitation learning algorithms.
+            </p>
+            </section>
+
+        <!-- METHOD / PIPELINE -->
+        <section class="glass-panel">
+            <h2>Methodology</h2>
+            <h3>Camera View Scaling (training)</h3>
+            <p>
+                Instead of collecting more demonstrations, we capture each trajectory with multiple synchronized cameras and treat each view as a separate pseudo-demonstration. 
+                This expands the dataset from a single trajectory into multiple view-specific sequences, increasing visual diversity at virtually no extra human cost.
+                To ensure consistency across views, we transform actions into appropriate coordinate spaces (e.g., camera space), enabling effective learning from multiview data and further enhancing diversity.
+            </p>
+            <img src="./static/imgs/view_scale.gif"
+                onerror="this.src='https://placehold.co/1127x484stage/1e293b/FFF?text=Pipeline+Overview'" alt="gif"
+                class="teaser-img" style="margin-bottom: 1rem;">
+            <p>
+                <b>Figure 1: Camera View Scaling-Up.</b> Each expert demonstration can be converted to multiple pseudo-demonstrations by exploiting multiple camera perspective views.
+            </p>
+
+            <h3>Camera View Scaling (inference, optional)</h3>
+            <p>
+                Although trained as a single-view policy, our model can optionally leverage multiple camera views at test time by aggregating action predictions across views. 
+                We combine per-view action distributions to favor actions that are consistent across perspectives, reducing uncertainty and improving robustness. 
+                This aggregation is efficiently implemented within the diffusion sampling process, enabling parallel multiview inference with minimal overhead.
+            </p>
+            <img src="./static/imgs/view_aggregation.gif"
+                onerror="this.src='https://placehold.co/1127x484stage/1e293b/FFF?text=Pipeline+Overview'" alt="gif"
+                class="teaser-img" style="margin-bottom: 1rem;">
+            <p>
+                <b>Figure 2: Multiview Composition for Model Inference.</b> We optionally exploit multiview camera inputs with single-view visuomotor policy during inference.
+            </p>
+
+        </section>
+
+        <!-- RESULTS -->
+        <section class="glass-panel">
+            <h2>Results</h2>
+
+            <!-- Qualitative Subsection -->
+            <h3 style="margin-top: 0;">Simulation Results</h3>
+            <p>
+                <b>Training with multiview pseudo-demonstrations consistently outperforms single-view learning</b>, often yielding large gains in success rate with minimal additional cost. 
+                Increasing the number of camera views further improves performance, highlighting the benefit of view scaling.
+            </p>
+            <center>
+            <img src="./static/imgs/view_scale_simulation.png"
+                onerror="this.src='https://placehold.co/900x400/1e293b/FFF?text=Comparison:+Voxel+vs+Mesh+vs+Ours'"
+                style="width: 100%;border-radius: 8px; margin: 1rem 0; border: 1px solid var(--glass-border);">
+            </center>
+            <p>The model can learn to <b>focus on most important regions</b> with camera view scaling-up during training.</p>
+            <center>
+            <img src="./static/imgs/sim_attn.gif"
+                onerror="this.src='https://placehold.co/900x400/1e293b/FFF?text=Comparison:+Voxel+vs+Mesh+vs+Ours'" alt="gif"
+                style="width: 100%;border-radius: 8px; margin: 1rem 0; border: 1px solid var(--glass-border);">
+            </center>
+            <p>
+                While trained as a single-view policy, <b>our method can leverage multiple camera inputs at inference by aggregating independently predicted actions.</b> 
+                This multiview aggregation improves performance over single-view deployment with minimal latency due to parallel processing. 
+            </p>
+            <center>
+            <img src="./static/imgs/view_composition.png"
+                onerror="this.src='https://placehold.co/900x400/1e293b/FFF?text=Comparison:+Voxel+vs+Mesh+vs+Ours'"
+                style="width: 100%;border-radius: 8px; margin: 1rem 0; border: 1px solid var(--glass-border);">
+            </center>
+
+            <h3 style="margin-top: 0;">Real-World Results</h3>
+            <p>
+                We evaluate our method on “pouring water” task with FANUC CRX-10iA robot arm. Both multiview scaling during training and multiview composition during inference help to improve the performance.
+            </p>
+            <div style="display: flex; gap: 1rem;">
+                <img src="./static/imgs/real_result.png"
+                    onerror="this.src='https://placehold.co/900x400/1e293b/FFF?text=Comparison:+Voxel+vs+Mesh+vs+Ours'"
+                    style="width: 60%; border-radius: 8px; border: 1px solid var(--glass-border);">
+
+                <img src="./static/imgs/7224.gif"
+                    onerror="this.src='https://placehold.co/900x400/1e293b/FFF?text=Comparison:+Voxel+vs+Mesh+vs+Ours'"
+                    style="width: 40%; border-radius: 8px; border: 1px solid var(--glass-border);">
+            </div>
+
+        </section>
+
+        <!-- BIBTEX -->
+        <section class="glass-panel">
+            <h2>Citation</h2>
+            <div class="bibtex-box">
+                <pre>@article{xie2026raynova,
+  title={RAYNOVA: Scale-Temporal Autoregressive World Modeling in Ray Space},
+  author={Xie, Yichen and Peng, Chensheng and Abdelfattah, Mazen and Hu, Yihan and Yang, Jiezhi and Higgins, Eric and Brigden, Ryan and Tomizuka, Masayoshi and Zhan, Wei},
+  journal={IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year={2026}
+}</pre>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // --- VANILLA TILT INIT ---
+        VanillaTilt.init(document.querySelectorAll("[data-tilt]"), {
+            max: 3,
+            speed: 400,
+            glare: true,
+            "max-glare": 0.1,
+        });
+
+        // --- RESULTS DATASETS ---
+        const datasets = {
+            'bonsai': {
+                NopoSplat: "./static/imgs/nopo/bonsai.png",
+                AnySplat: "./static/imgs/any/bonsai.png",
+                ours: "./static/imgs/uni/bonsai.png",
+                gt: "./static/imgs/gt/bonsai.png"
+            },
+            'counter': {
+                NopoSplat: "./static/imgs/nopo/counter.png",
+                AnySplat: "./static/imgs/any/counter.png",
+                ours: "./static/imgs/uni/counter.png",
+                gt: "./static/imgs/gt/counter.png"
+            },
+            'room': {
+                NopoSplat: "./static/imgs/nopo/room.png",
+                AnySplat: "./static/imgs/any/room.png",
+                ours: "./static/imgs/uni/room.png",
+                gt: "./static/imgs/gt/room.png"
+            }
+        };
+
+        function updateResults(datasetKey, clickedThumb) {
+            const container = document.getElementById('results-display');
+            const data = datasets[datasetKey];
+
+            // Update Active State (works for buttons too)
+            document.querySelectorAll('.dataset-btn').forEach(t => t.classList.remove('active'));
+            clickedThumb.classList.add('active');
+
+            // Fade Out
+            container.style.opacity = '0';
+
+            setTimeout(() => {
+                // Update Content - Removed GT, kept 3 items
+                container.innerHTML = `
+                    <div class="result-item">
+                        <img src="${data.NopoSplat}" alt="NopoSplat">
+                        <div class="result-label">Nopo-Splat</div>
+                    </div>
+                    <div class="result-item">
+                        <img src="${data.AnySplat}" alt="AnySplat">
+                        <div class="result-label">AnySplat</div>
+                    </div>
+                    <div class="result-item">
+                        <img src="${data.ours}" alt="Ours">
+                        <div class="result-label">Ours</div>
+                    </div>
+                `;
+                // Fade In
+                container.style.opacity = '1';
+            }, 200);
+        }
+
+        // Initialize with Bonsai
+        document.addEventListener('DOMContentLoaded', () => {
+            const firstBtn = document.querySelector('.dataset-btn');
+            if (firstBtn) updateResults('bonsai', firstBtn);
+        });
+
+        // --- TABLE SWITCHING LOGIC ---
+        function switchTable(tableId, btn) {
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Hide all tables
+            document.querySelectorAll('.metrics-table').forEach(t => t.style.display = 'none');
+
+            // Show selected table
+            document.getElementById('table-' + tableId).style.display = 'block';
+        }
+
+        // --- THREE.JS BACKGROUND ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+
+        const container3d = document.getElementById('canvas-container');
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container3d.appendChild(renderer.domElement);
+
+        // Particles
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 700;
+
+        const posArray = new Float32Array(particlesCount * 3);
+
+        for (let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 15;
+        }
+
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+        // Material
+        const particlesMaterial = new THREE.PointsMaterial({
+            size: 0.025,
+            color: 0x2196F3,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+
+        const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particlesMesh);
+
+        camera.position.z = 3;
+
+        // Mouse interaction
+        let mouseX = 0;
+        let mouseY = 0;
+
+        document.addEventListener('mousemove', (event) => {
+            mouseX = event.clientX / window.innerWidth - 0.5;
+            mouseY = event.clientY / window.innerHeight - 0.5;
+        });
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsedTime = clock.getElapsedTime();
+
+            particlesMesh.rotation.y = elapsedTime * 0.03;
+            particlesMesh.rotation.y += mouseX * 0.1;
+            particlesMesh.rotation.x += mouseY * 0.1;
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+
+</html>
